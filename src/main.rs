@@ -1,8 +1,11 @@
+// On Video #1, timestamp 13:30
+//  https://youtu.be/qJgsuQoy9bc?si=VPn5THsHB6xoRgiL
+
 type Byte = u8;    // equivalent to unsigned char
 type Word = u16;   // equivalent to unsigned short
 
 struct Mem {
-
+    // NEED TO IMPL
 }
 
 struct CPU {
