@@ -18,9 +18,27 @@ impl Mem {
         }
     }
 
-    pub fn initialize() -> Self {
+    pub fn initialize(&self) -> Self {
         Mem {
             data: [0; MAX_MEM]
+        }
+    }
+
+    pub fn read(&self, address: u32) -> Option<Byte>{
+        if address > MAX_MEM as u32 {
+            return None
+        } else {
+            return Some(self.data[address as usize])
+        }
+    }
+
+    pub fn write(&mut self, address: u32, value: Byte) -> Option<Byte> {
+        if address > MAX_MEM as u32 {
+            return None
+        }
+        else {
+            self.data[address as usize] = value;
+            return Some(self.data[address as usize])
         }
     }
 }
@@ -199,8 +217,15 @@ impl CPU {
         self.n = (status >> 7) & 1;
     }
 
+    pub fn get_stats(&self, mem: &Mem) {
+        print!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", 
+                self.pc, self.sp, self.a, self.x, self.y, self.c, 
+                self.z, self.i, self.d, self.b, self.v, self.n);
+        print!("{:#?}", mem.data);
+    }
+
     // Reset the CPU
-    pub fn reset(&mut self, mut mem: Mem) {
+    pub fn reset(&mut self, mem: &Mem) {
         // Set pc to default reset vector hex address
         self.pc = 0xFFFC;
         // Set sp to initialize at 100 (not accurate to Commodore64, still works)
@@ -217,13 +242,51 @@ impl CPU {
         self.v = 0;
         self.n = 0;
 
-        Mem::initialize();
+        mem.initialize();
+    }
+
+    pub fn fetch_byte(&mut self, cycles: &mut u32, mem: &Mem) -> Byte {
+        let data: Byte = mem.data[self.pc as usize];
+        self.pc += 1;
+        *cycles -= 1;
+        return data;
+    }
+
+    // opcodes
+    const INS_LDA_IM: Byte = 0xA9;
+
+    pub fn execute(&mut self, cycles: &mut u32, mem: &Mem) {
+        // Cycles = number of ticks to execute instructions
+        while *cycles > 0 {
+            let ins: Byte = self.fetch_byte(cycles, mem);
+            match ins {
+                INS_LDA_IM=> {
+                    let value: Byte = self.fetch_byte(cycles, mem);
+                    self.a = value;
+                    self.z = (self.a == 0) as u8;
+                    // TODO - need to fix logic below, think that's where the
+                    //        problem in changing the registers is
+                    self.n = self.a & 0b10000000;
+                }
+                _ => {println!("Instruction not handled")}
+            }
+        }
     }
 }
 
 fn main() {
+    let mut cycles: u32 = 2;
     let mut mem: Mem = Mem::new();
     let mut cpu: CPU = CPU::new();
-    CPU::reset(&mut cpu, mem);
-    println!("Hello, world!");
+    cpu.reset(&mut mem);
+    // Start - inline a little program
+    mem.write(0xFFFC, CPU::INS_LDA_IM);
+    // Above same thing as - mem.data[0xFFFC] = CPU::INS_LDA_IM;
+    mem.write(0xFFFD, 0x42);
+    // End - inline a little program
+
+    cpu.execute(&mut cycles, &mut mem);
+    let check_address: Option<u8> = mem.read(0xFFFD);
+    print!("{:#?}\n", check_address);
+    print!("{}\n", cpu.n);
 }
