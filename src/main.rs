@@ -1,4 +1,4 @@
-// On Video #1, timestamp 13:30
+// On Video #1, timestamp 35:00
 //  https://youtu.be/qJgsuQoy9bc?si=VPn5THsHB6xoRgiL
 
 type Byte = u8;    // equivalent to unsigned char
@@ -82,10 +82,10 @@ impl CPU {
     }
 
     pub fn get_stats(&self, mem: &Mem) {
-        print!("{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", 
+        print!("pc = {}\nsp = {}\na = {}\nx = {}\ny = {}\nc = {}\nz = {}\ni = {}\nd = {}\nb = {}\nv = {}\nn = {}", 
                 self.pc, self.sp, self.a, self.x, self.y, self.c, 
                 self.z, self.i, self.d, self.b, self.v, self.n);
-        print!("{:#?}", mem.data);
+        //print!("{:#?}", mem.data);
     }
 
     // Reset the CPU
@@ -109,15 +109,28 @@ impl CPU {
         mem.initialize();
     }
 
-    pub fn fetch_byte(&mut self, cycles: &mut u32, mem: &Mem) -> Byte {
+    fn fetch_byte(&mut self, cycles: &mut u32, mem: &Mem) -> Byte {
         let data: Byte = mem.data[self.pc as usize];
         self.pc += 1;
         *cycles -= 1;
         return data;
     }
 
+    fn read_byte(&mut self, cycles: &mut u32, address: Byte, mem: &Mem) -> Byte {
+        // Does not increment pc, not executing code only reading memory
+        let data: Byte = mem.data[address as usize];
+        *cycles -= 1;
+        return data;
+    }
+
     // opcodes
     const INS_LDA_IM: Byte = 0xA9;
+    const INS_LDA_ZP: Byte = 0xA5;
+
+    fn lda_set_status(&mut self) {
+        self.z = (self.a == 0) as Byte;
+        self.n = ((self.a & 0b10000000) > 0) as Byte;
+    }
 
     pub fn execute(&mut self, cycles: &mut u32, mem: &Mem) {
         // Cycles = number of ticks to execute instructions
@@ -127,10 +140,12 @@ impl CPU {
                 INS_LDA_IM=> {
                     let value: Byte = self.fetch_byte(cycles, mem);
                     self.a = value;
-                    self.z = (self.a == 0) as u8;
-                    // TODO - need to fix logic below, think that's where the
-                    //        problem in changing the registers is
-                    self.n = self.a & 0b10000000;
+                    self.lda_set_status();
+                }
+                INS_LDA_ZP => {
+                    let zero_page_address: Byte = self.fetch_byte(cycles, mem);
+                    self.a = self.read_byte(cycles, zero_page_address, mem);
+                    self.lda_set_status();
                 }
                 _ => {println!("Instruction not handled")}
             }
@@ -152,5 +167,7 @@ fn main() {
     cpu.execute(&mut cycles, &mut mem);
     let check_address: Option<u8> = mem.read(0xFFFD);
     print!("{:#?}\n", check_address);
-    print!("{}\n", cpu.n);
+    print!("{}\n", cpu.a);
+
+    cpu.get_stats(&mem);
 }
