@@ -6,6 +6,10 @@ type Word = u16;   // equivalent to unsigned short
 
 const MAX_MEM: usize = 1024 * 64;
 
+// opcodes
+const INS_LDA_IM: Byte = 0xA9;
+const INS_LDA_ZP: Byte = 0xA5;
+
 struct Mem {
     data: [Byte; MAX_MEM]
 }
@@ -25,7 +29,7 @@ impl Mem {
     }
 
     pub fn read(&self, address: u32) -> Option<Byte>{
-        if address > MAX_MEM as u32 {
+        if address > u32::try_from(MAX_MEM).unwrap() {
             return None
         } else {
             return Some(self.data[address as usize])
@@ -33,12 +37,12 @@ impl Mem {
     }
 
     pub fn write(&mut self, address: u32, value: Byte) -> Option<Byte> {
-        if address > MAX_MEM as u32 {
+        if address > u32::try_from(MAX_MEM).unwrap() {
             return None
         }
         else {
-            self.data[address as usize] = value;
-            return Some(self.data[address as usize])
+            self.data[usize::try_from(address).unwrap()] = value;
+            return Some(self.data[usize::try_from(address).unwrap()])
         }
     }
 }
@@ -81,11 +85,10 @@ impl CPU {
         }
     }
 
-    pub fn get_stats(&self, mem: &Mem) {
+    pub fn get_stats(&self) {
         print!("pc = {}\nsp = {}\na = {}\nx = {}\ny = {}\nc = {}\nz = {}\ni = {}\nd = {}\nb = {}\nv = {}\nn = {}", 
                 self.pc, self.sp, self.a, self.x, self.y, self.c, 
                 self.z, self.i, self.d, self.b, self.v, self.n);
-        //print!("{:#?}", mem.data);
     }
 
     // Reset the CPU
@@ -110,7 +113,7 @@ impl CPU {
     }
 
     fn fetch_byte(&mut self, cycles: &mut u32, mem: &Mem) -> Byte {
-        let data: Byte = mem.data[self.pc as usize];
+        let data: Byte = mem.data[usize::from(self.pc)];
         self.pc += 1;
         *cycles -= 1;
         return data;
@@ -123,13 +126,9 @@ impl CPU {
         return data;
     }
 
-    // opcodes
-    const INS_LDA_IM: Byte = 0xA9;
-    const INS_LDA_ZP: Byte = 0xA5;
-
     fn lda_set_status(&mut self) {
-        self.z = (self.a == 0) as Byte;
-        self.n = ((self.a & 0b10000000) > 0) as Byte;
+        self.z = Byte::from(self.a == 0);
+        self.n = Byte::from((self.a & 0b10000000) > 0);
     }
 
     pub fn execute(&mut self, cycles: &mut u32, mem: &Mem) {
@@ -159,7 +158,7 @@ fn main() {
     let mut cpu: CPU = CPU::new();
     cpu.reset(&mut mem);
     // Start - inline a little program
-    mem.write(0xFFFC, CPU::INS_LDA_IM);
+    mem.write(0xFFFC, INS_LDA_IM);
     // Above same thing as - mem.data[0xFFFC] = CPU::INS_LDA_IM;
     mem.write(0xFFFD, 0x42);
     // End - inline a little program
