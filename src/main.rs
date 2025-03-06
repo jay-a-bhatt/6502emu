@@ -9,6 +9,7 @@
 mod constants;
 mod statusbits;
 mod opcodes;
+mod logical_ops;
 
 type Byte = constants::Byte;
 type Word = constants::Word;
@@ -231,7 +232,7 @@ impl CPU {
         self.push_word_to_stack(self.pc + 1, cycles, mem);
     }
 
-    fn lda_set_status(&mut self) {
+    fn set_zero_and_neg_flags(&mut self) {
         self.z = Byte::from(self.a == 0);
         self.n = Byte::from((self.a & statusbits::status::NEGATIVE) > 0);
     }
@@ -244,12 +245,12 @@ impl CPU {
                 opcodes::lda::IMMEDIATE => {
                     let value: Byte = self.fetch_byte(cycles, mem);
                     self.a = value;
-                    self.lda_set_status();
+                    self.set_zero_and_neg_flags();
                 }
                 opcodes::lda::ZERO_PAGE => {
                     let zero_page_address: Byte = self.fetch_byte(cycles, mem);
                     self.a = self.read_byte(cycles, zero_page_address, mem);
-                    self.lda_set_status();
+                    self.set_zero_and_neg_flags();
                 }
                 _ => {println!("Instruction not handled")}
             }
